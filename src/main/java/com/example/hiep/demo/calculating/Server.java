@@ -1,14 +1,8 @@
 package com.example.hiep.demo.calculating;
 
 import io.vertx.core.AbstractVerticle;
-import io.vertx.core.Vertx;
-import io.vertx.core.buffer.Buffer;
-import io.vertx.core.http.HttpMethod;
-import io.vertx.core.http.HttpServer;
+import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.json.JsonObject;
-import io.vertx.ext.web.Router;
-import io.vertx.ext.web.RoutingContext;
-import io.vertx.ext.web.handler.BodyHandler;
 
 public class Server extends AbstractVerticle {
 
@@ -19,42 +13,18 @@ public class Server extends AbstractVerticle {
 
     @Override
     public void start() throws Exception {
-        Router router = Router.router(vertx);
-        router.route().handler(BodyHandler.create());
-        router.route(HttpMethod.GET, "/calculate/:operater/:first/:second")
-                .handler(context -> doGet(context));
-        router.route(HttpMethod.POST, "/calculate")
-                .handler(context -> doPost(context));
+        EventBus eventBus = vertx.eventBus();
 
-        HttpServer server = vertx.createHttpServer();
-        server.requestHandler(router)
-                .listen(8080, http -> {
-                    if (http.succeeded()) {
-                        System.out.println("HTTP Server started on port " + server.actualPort());
-                    } else {
-                        System.out.println(http.cause().getMessage());
-                    }
-                });
-    }
+        eventBus.consumer("calculating.basic", message -> {
+            System.out.println("I have received a message: " + message.body());
+            JsonObject json = JsonObject.mapFrom(message.body());
+            String first = json.getString("first");
+            String second = json.getString("second");
+            String operater = json.getString("operater");
 
-    private void doGet(RoutingContext context) {
-        String first = context.request().getParam("first");
-        String second = context.request().getParam("second");
-        String operater = context.request().getParam("operater");
-
-        String result = calculate(first, second, operater);
-        context.response().end(String.valueOf(result));
-    }
-
-    private void doPost(RoutingContext context) {
-        Buffer buffer = context.getBody();
-        JsonObject json = new JsonObject(buffer);
-        String first = json.getString("first");
-        String second = json.getString("second");
-        String operater = json.getString("operater");
-
-        String result = calculate(first, second, operater);
-        context.response().end(String.valueOf(result));
+            String result = calculate(first, second, operater);
+            message.reply(result);
+        });
     }
 
     private String calculate(String first, String second, String operater) {
@@ -99,10 +69,5 @@ public class Server extends AbstractVerticle {
         }
 
         return String.valueOf(result);
-    }
-
-    public static void main(String[] args) {
-        Vertx vertx = Vertx.vertx();
-        vertx.deployVerticle(new Server());
     }
 }

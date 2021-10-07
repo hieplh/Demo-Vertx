@@ -1,43 +1,38 @@
 package com.example.hiep.demo.calculating;
 
 import io.vertx.core.AbstractVerticle;
-import io.vertx.core.Vertx;
-import io.vertx.core.http.HttpClient;
-import io.vertx.core.http.HttpClientOptions;
-import io.vertx.core.http.HttpMethod;
+import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.json.JsonObject;
 
 public class Client extends AbstractVerticle {
 
     @Override
     public void start() throws Exception {
-        HttpClientOptions options = new HttpClientOptions();
-        options.setTrustAll(true)
-                .setDefaultHost("localhost")
-                .setDefaultPort(8080);
+        EventBus eventBus = vertx.eventBus();
 
-        HttpClient client = vertx.createHttpClient(options);
-        client.request(HttpMethod.GET, "/calculate/add/1/2")
-                .compose(request ->
-                        request.send()
-                                .compose(response -> response.body()))
-                .onSuccess(result -> System.out.println(result.toString()))
-                .onFailure(e -> System.out.println("Error: " + e.getMessage()));
-
-        client.request(HttpMethod.POST, "/calculate")
-                .compose(request -> {
-                    JsonObject json = new JsonObject();
-                    json.put("first", 2);
-                    json.put("second", 3);
-                    json.put("operater", "multiply");
-                    return request.send(json.toBuffer());
-                }).compose(response -> response.body())
-                .onSuccess(result -> System.out.println(result))
-                .onFailure(e -> System.out.println("Error: " + e.getMessage()));
-    }
-
-    public static void main(String[] args) {
-        Vertx vertx = Vertx.vertx();
-        vertx.deployVerticle(new Client());
+        JsonObject example1 = new JsonObject();
+        example1.put("first", 10);
+        example1.put("second", 20);
+        example1.put("operater", "add");
+        
+        eventBus.request("calculating.basic", example1, response -> {
+            if (response.succeeded()) {
+                System.out.println("Result_1: " + response.result().body());
+            } else {
+                System.out.println("Lost message_1, cause: " + response.cause().toString());
+            }
+        });
+        
+        JsonObject example2 = new JsonObject();
+        example2.put("first", 10);
+        example2.put("second", 20);
+        example2.put("operater", "divide");
+        eventBus.request("calculating.basic", example2, response -> {
+            if (response.succeeded()) {
+                System.out.println("Result_2: " + response.result().body());
+            } else {
+                System.out.println("Lost message_2, cause: " + response.cause().toString());
+            }
+        });
     }
 }
