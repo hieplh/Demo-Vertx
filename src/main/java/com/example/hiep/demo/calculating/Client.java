@@ -21,7 +21,7 @@ public class Client extends AbstractVerticle {
                 .compose(request ->
                         request.send()
                                 .compose(response -> response.body()))
-                .onSuccess(result -> System.out.println(result.toString()))
+                .onSuccess(result -> System.out.println("Result: " + result.toString()))
                 .onFailure(e -> System.out.println("Error: " + e.getMessage()));
 
         client.request(HttpMethod.POST, "/calculate")
@@ -32,7 +32,7 @@ public class Client extends AbstractVerticle {
                     json.put("operater", "multiply");
                     return request.send(json.toBuffer());
                 }).compose(response -> response.body())
-                .onSuccess(result -> System.out.println(result))
+                .onSuccess(result -> System.out.println("Result: " + result))
                 .onFailure(e -> System.out.println("Error: " + e.getMessage()));
     }
 
