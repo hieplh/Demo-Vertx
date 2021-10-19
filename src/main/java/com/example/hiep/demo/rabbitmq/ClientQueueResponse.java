@@ -4,14 +4,11 @@ import com.rabbitmq.client.BasicProperties;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.EventBus;
-import io.vertx.core.eventbus.Message;
 import io.vertx.core.json.JsonObject;
 import io.vertx.rabbitmq.RabbitMQClient;
 import io.vertx.rabbitmq.RabbitMQConsumer;
 import io.vertx.rabbitmq.RabbitMQOptions;
 import java.util.Base64;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 
 public class ClientQueueResponse extends AbstractVerticle {
 
@@ -46,18 +43,17 @@ public class ClientQueueResponse extends AbstractVerticle {
                 consumer.handler(consumerHandler -> {
                     Buffer content = consumerHandler.body();
                     BasicProperties pSrc = consumerHandler.properties();
+                    if (pSrc == null || pSrc.getCorrelationId() == null) {
+                        System.out.println("Result: " + content);
+                    } else {
+                        String payloadString = (String) decode(content.toString(), PAYLOAD);
+                        JsonObject payload = new JsonObject(payloadString);
 
-                    String payloadString = (String) decode(content.toString(), PAYLOAD);
-                    JsonObject payload = new JsonObject(payloadString);
-
-                    dispatch(client, pSrc, payload);
+                        dispatch(client, pSrc, payload);
+                    }
                 });
             }
         });
-    }
-
-    private void sendResponse(RabbitMQClient client, BasicProperties pSrc, String result) {
-        client.basicPublish("", pSrc.getReplyTo(), Buffer.buffer(result));
     }
 
     private Object decode(String token, int type) {
@@ -70,9 +66,9 @@ public class ClientQueueResponse extends AbstractVerticle {
         eventBus.request(EVENTBUS_REQUEST, payload, reply -> {
             if (reply.succeeded()) {
                 String result = (String) reply.result().body();
-                sendResponse(client, pSrc, result);
+                client.basicPublish("", pSrc.getReplyTo(), Buffer.buffer(result));
             } else {
-                sendResponse(client, pSrc, "Server got something wrong");
+                client.basicPublish("", pSrc.getReplyTo(), Buffer.buffer("Server got something wrong"));
             }
         });
     }
